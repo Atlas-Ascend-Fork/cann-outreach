@@ -1,0 +1,9 @@
+# 编译产物
+build_out/
+__pycache__/
+*.pyc
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
