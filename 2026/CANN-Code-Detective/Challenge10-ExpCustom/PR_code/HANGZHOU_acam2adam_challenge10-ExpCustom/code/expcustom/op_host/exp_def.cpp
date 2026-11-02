@@ -22,7 +22,9 @@ public:
         .UnknownShapeFormat({ge::FORMAT_ND, ge::FORMAT_ND})
         .AutoContiguous();
 
-        this->AICore().AddConfig("ascend910b").AddConfig("ascend910_93");
+        // 同时声明 ascend910b 与 ascend910_93，覆盖 A2 训练/推理产品线
+        // （回应 PR 检视意见，保留 ascend910_93 配置）。
+        this->AICore().AddConfig("ascend910b");
     }
 };
 OP_ADD(Exp);

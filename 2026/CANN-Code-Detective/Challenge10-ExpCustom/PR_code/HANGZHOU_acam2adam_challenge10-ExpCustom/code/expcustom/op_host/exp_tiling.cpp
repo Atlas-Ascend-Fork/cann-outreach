@@ -3,6 +3,9 @@
  * \brief Exp 算子 Tiling 实现
  */
 
+#include <cstdint>
+#include <limits>
+
 #include "register/op_def_registry.h"
 #include "op_common/log/log.h"
 #include "op_common/op_host/util/math_util.h"
@@ -12,124 +15,178 @@
 
 namespace optiling {
 
-using Ops::Base::CeilDiv;
-using Ops::Base::CeilAlign;
-using Ops::Base::FloorDiv;
-using Ops::Base::FloorAlign;
-using Ops::Base::GetUbBlockSize;
+namespace {
+// 每核最小数据量：32768 bit = 4KB（按元素位宽折算）
+constexpr int32_t MIN_TILING_BITS_SIZE_PER_CORE = 32768;
+// 元素对齐因子：512 元素（保证 32B/256B 对齐）
+constexpr int32_t ELEM_ALIGN_FACTOR = 512;
+// 256B 对齐
+constexpr int32_t ALIGN_256 = 256;
+// UB 队列数：in/out 队列 × 每队列 BUFFER_NUM(=2)
+constexpr int32_t BUFFER_QUEUE_NUM = 4;
+// ExpTilingData 全部字段为 int32，可表示的正区间上限（R7：越界 fail-fast，禁止静默截断）
+constexpr int64_t TILING_FIELD_MAX = static_cast<int64_t>(std::numeric_limits<int32_t>::max());
 
-constexpr uint32_t WS_SYS_SIZE = 0U;
-constexpr size_t WORKSPACE_NUM = 1;
-// 双缓冲下 UB 中 tensor 数量：输入 2 块 + 输出 2 块
-constexpr int64_t BUFFER_TENSOR_COUNT = 4;
-
-static const gert::Shape g_vec_1_shape = {1};
-
-static inline const gert::Shape EnsureNotScalar(const gert::Shape& in_shape) {
-    if (in_shape.GetDimNum() == 0) {
-        return g_vec_1_shape;
-    }
-    return in_shape;
-}
-
-static ge::graphStatus GetPlatformInfo(gert::TilingContext* context, uint64_t& ubSize, int64_t& coreNum)
+// 展平输入 shape 计算元素总数：int64 累乘并做溢出检查；
+// 遇到负维度返回 false（非法 shape），遇到 0 维直接判为空 tensor（totalNum=0）。
+bool CalcTotalNum(const gert::Shape& storageShape, int64_t& totalNum)
 {
-    fe::PlatFormInfos* platformInfoPtr = context->GetPlatformInfo();
-    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfoPtr);
-    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
-    coreNum = ascendcPlatform.GetCoreNumAiv();
-    OP_CHECK_IF(coreNum == 0, OP_LOGE(context, "coreNum is 0"), return ge::GRAPH_FAILED);
-    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
-    OP_CHECK_IF(ubSize == 0, OP_LOGE(context, "ubSize is 0"), return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
-}
-
-static ge::graphStatus GetShapeInfo(gert::TilingContext* context, int64_t& totalNum, ge::DataType& dataType)
-{
-    auto inputX = context->GetInputShape(0);
-    OP_CHECK_NULL_WITH_CONTEXT(context, inputX);
-    auto inputShapeX = EnsureNotScalar(inputX->GetStorageShape());
-    // totalNum 由输入 shape 逐维相乘得到
     totalNum = 1;
-    for (size_t i = 0; i < inputShapeX.GetDimNum(); i++) {
-        totalNum *= inputShapeX.GetDim(i);
+    for (size_t i = 0; i < storageShape.GetDimNum(); i++) {
+        const int64_t dim = storageShape.GetDim(i);
+        if (dim < 0) {
+            return false; // 非法负维度
+        }
+        if (dim == 0) {
+            totalNum = 0; // 空 tensor：后续维度不参与累乘
+            return true;
+        }
+        if (totalNum > std::numeric_limits<int64_t>::max() / dim) {
+            return false; // int64 累乘溢出
+        }
+        totalNum *= dim;
     }
-
-    auto inputDesc = context->GetInputDesc(0);
-    OP_CHECK_NULL_WITH_CONTEXT(context, inputDesc);
-    dataType = inputDesc->GetDataType();
-    OP_CHECK_IF(
-        dataType != ge::DT_FLOAT && dataType != ge::DT_FLOAT16,
-        OP_LOGE(context, "Exp only supports DT_FLOAT and DT_FLOAT16"), return ge::GRAPH_FAILED);
-    return ge::GRAPH_SUCCESS;
+    return true;
 }
 
-// 即使 workspace 大小为 0，也必须声明 workspace slot
-static ge::graphStatus GetWorkspaceSize(gert::TilingContext* context)
-{
-    size_t* currentWorkspace = context->GetWorkspaceSizes(WORKSPACE_NUM);
-    OP_CHECK_NULL_WITH_CONTEXT(context, currentWorkspace);
-    currentWorkspace[0] = WS_SYS_SIZE;
-    return ge::GRAPH_SUCCESS;
-}
+} // namespace
 
 static ge::graphStatus ExpTilingFunc(gert::TilingContext* context)
 {
-    uint64_t ubSize;
-    int64_t coreNum;
-    OP_CHECK_IF(
-        GetPlatformInfo(context, ubSize, coreNum) != ge::GRAPH_SUCCESS,
-        OP_LOGE(context, "GetPlatformInfo error"),
-        return ge::GRAPH_FAILED);
+    if (context == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
+    const auto inputShape = context->GetInputShape(0);
+    if (inputShape == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
+    const auto inputDesc = context->GetInputDesc(0);
+    if (inputDesc == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
 
+    // dtype 白名单（R5）：仅支持 FLOAT/FLOAT16，其余显式拒绝；
+    // elemBytes 与 tilingKey 的选择只在该白名单内分支，禁止按 2 字节兜底。
+    // tilingKey 编码：float32 -> 0（C_DT_FLOAT），float16 -> 1（C_DT_FLOAT16）。
+    const ge::DataType dtype = inputDesc->GetDataType();
+    int32_t elemBytes = 0;
+    if (dtype == ge::DT_FLOAT) {
+        elemBytes = 4;
+        ASCENDC_TPL_SEL_PARAM(context, C_DT_FLOAT);
+    } else if (dtype == ge::DT_FLOAT16) {
+        elemBytes = 2;
+        ASCENDC_TPL_SEL_PARAM(context, C_DT_FLOAT16);
+    } else {
+        return ge::GRAPH_FAILED;
+    }
+
+    auto tiling = context->GetTilingData<ExpTilingData>();
+    if (tiling == nullptr) {
+        return ge::GRAPH_FAILED;
+    }
+
+    // 元素总数（R7）：int64 累乘（带溢出检查）；ExpTilingData 字段为 int32，
+    // 超出 int32 正区间即 fail-fast（> 2^31-1 元素不支持），禁止静默截断。
     int64_t totalNum = 0;
-    ge::DataType dataType = ge::DT_FLOAT;
-    OP_CHECK_IF(
-        GetShapeInfo(context, totalNum, dataType) != ge::GRAPH_SUCCESS,
-        OP_LOGE(context, "GetShapeInfo error"),
-        return ge::GRAPH_FAILED);
+    if (!CalcTotalNum(inputShape->GetStorageShape(), totalNum)) {
+        return ge::GRAPH_FAILED;
+    }
+    if (totalNum > TILING_FIELD_MAX) {
+        return ge::GRAPH_FAILED;
+    }
 
-    OP_CHECK_IF(
-        GetWorkspaceSize(context) != ge::GRAPH_SUCCESS,
-        OP_LOGE(context, "GetWorkspaceSize error"),
-        return ge::GRAPH_FAILED);
-
-    ExpTilingData* tiling = context->GetTilingData<ExpTilingData>();
-    OP_CHECK_NULL_WITH_CONTEXT(context, tiling);
-    *tiling = ExpTilingData();
-
-    // 空 Tensor 场景，避免除零
+    // 空输入（totalNum=0）：按赛道/题面口径用 SetBlockDim 显式下发最小合法 block dim（1），
+    // 并清零 9 个 tiling 字段；kernel 侧 blockNum<=0 早退，确保 0 元素不读写 GM。
     if (totalNum <= 0) {
+        if (context->SetBlockDim(1U) != ge::GRAPH_SUCCESS) {
+            return ge::GRAPH_FAILED;
+        }
+        auto ws = context->GetWorkspaceSizes(1);
+        if (ws != nullptr) {
+            ws[0] = 0; // 本方案无 workspace
+        }
         tiling->totalNum = 0;
-        tiling->blockFactor = 1;
+        tiling->coreNum = 0;
+        tiling->blockFactor = 0;
+        tiling->blockNum = 0;
         tiling->ubFactor = 0;
-        context->SetBlockDim(1);
-        context->SetTilingKey(GET_TPL_TILING_KEY(
-            static_cast<uint64_t>(dataType == ge::DT_FLOAT16 ? EXP_TPL_SCH_MODE_0 : EXP_TPL_SCH_MODE_1)));
+        tiling->ubLoopOfFormerBlock = 0;
+        tiling->ubTailOfFormerBlock = 0;
+        tiling->ubLoopOfTailBlock = 0;
+        tiling->ubTailOfTailBlock = 0;
         return ge::GRAPH_SUCCESS;
     }
 
-    const int64_t typeSize = (dataType == ge::DT_FLOAT16) ? 2 : 4;
-    const int64_t alignElem = static_cast<int64_t>(GetUbBlockSize(context)) / typeSize;
-
-    // 多核切分：按 AIV 核数均分，并按 32B 对齐
-    tiling->totalNum = totalNum;
-    tiling->blockFactor = CeilAlign(CeilDiv(totalNum, coreNum), alignElem);
-    int64_t usedCoreNum = CeilDiv(totalNum, tiling->blockFactor);
-    OP_CHECK_IF(usedCoreNum <= 0, OP_LOGE(context, "usedCoreNum is 0"), return ge::GRAPH_FAILED);
-
-    // UB 切分：双缓冲下输入输出共 4 块 tensor，按 32B 对齐向下取整
-    tiling->ubFactor = FloorAlign(
-        FloorDiv(static_cast<int64_t>(ubSize) / typeSize, BUFFER_TENSOR_COUNT), alignElem);
-    if (tiling->ubFactor < alignElem) {
-        tiling->ubFactor = alignElem;
+    const uint32_t availCoreNum = Ops::Base::GetAivCoreNum(context);
+    const uint32_t ubSize = Ops::Base::GetUbSize(context);
+    if (availCoreNum == 0 || ubSize == 0) {
+        return ge::GRAPH_FAILED;
     }
 
-    context->SetBlockDim(static_cast<uint32_t>(usedCoreNum));
+    // 多核切分：每核至少 4KB 数据（512 元素对齐）
+    const int32_t minDtypeBits = elemBytes * 8;
+    int64_t coreNum64 =
+        (totalNum * minDtypeBits + MIN_TILING_BITS_SIZE_PER_CORE - 1) / MIN_TILING_BITS_SIZE_PER_CORE;
+    coreNum64 = coreNum64 < static_cast<int64_t>(availCoreNum) ? coreNum64
+                                                               : static_cast<int64_t>(availCoreNum);
+    if (coreNum64 < 1) {
+        coreNum64 = 1;
+    }
+    const int32_t coreNum = static_cast<int32_t>(coreNum64);
 
-    // 根据输入 dtype 选择 tilingKey: float16 -> 0, float32 -> 1
-    context->SetTilingKey(GET_TPL_TILING_KEY(
-        static_cast<uint64_t>(dataType == ge::DT_FLOAT16 ? EXP_TPL_SCH_MODE_0 : EXP_TPL_SCH_MODE_1)));
+    const int64_t blockFactor64 = ((totalNum + coreNum - 1) / coreNum + ELEM_ALIGN_FACTOR - 1) /
+                                  ELEM_ALIGN_FACTOR * ELEM_ALIGN_FACTOR;
+    const int64_t blockNum64 = (totalNum + blockFactor64 - 1) / blockFactor64;
+    // R7：blockFactor / blockNum 转 int32 前校验正区间，越界 fail-fast（禁止静默截断）
+    if (blockFactor64 <= 0 || blockFactor64 > TILING_FIELD_MAX ||
+        blockNum64 <= 0 || blockNum64 > TILING_FIELD_MAX) {
+        return ge::GRAPH_FAILED;
+    }
+    const int32_t blockNum = static_cast<int32_t>(blockNum64);
+    const int32_t blockFactor = static_cast<int32_t>(blockFactor64);
+
+    // UB tile：256B 对齐；4 块队列均分 UB 容量
+    const int32_t maxElemNum = static_cast<int32_t>(ubSize / (BUFFER_QUEUE_NUM * elemBytes));
+    int32_t ubFactor = maxElemNum / (ALIGN_256 / elemBytes) * (ALIGN_256 / elemBytes);
+    ubFactor = ubFactor < blockFactor ? ubFactor : blockFactor;
+    if (ubFactor <= 0) {
+        return ge::GRAPH_FAILED; // UB 容量不足以构造合法 tile（同时避免后续除零）
+    }
+
+    // loop/tail 中间量用 int64 计算，避免 blockFactor + ubFactor 的 int32 相加溢出；
+    // 结果天然落在 [1, blockFactor] ⊆ int32 正区间内。
+    const int32_t ubLoopOfFormerBlock =
+        static_cast<int32_t>((static_cast<int64_t>(blockFactor) + ubFactor - 1) / ubFactor);
+    const int32_t ubTailOfFormerBlock = static_cast<int32_t>(
+        static_cast<int64_t>(blockFactor) - static_cast<int64_t>(ubLoopOfFormerBlock - 1) * ubFactor);
+
+    const int64_t blockTail = totalNum - static_cast<int64_t>(blockNum - 1) * blockFactor;
+    const int32_t ubLoopOfTailBlock = static_cast<int32_t>((blockTail + ubFactor - 1) / ubFactor);
+    const int32_t ubTailOfTailBlock =
+        static_cast<int32_t>(blockTail - static_cast<int64_t>(ubLoopOfTailBlock - 1) * ubFactor);
+
+    // block dim：每个 block 恰好对应一个核，实际启动 blockNum 个核。
+    // R3：按赛道/题面口径使用 SetBlockDim 下发启动核数；
+    // 必须校验返回值，失败时返回 GRAPH_FAILED，禁止静默使用框架默认核数。
+    if (context->SetBlockDim(static_cast<uint32_t>(blockNum)) != ge::GRAPH_SUCCESS) {
+        return ge::GRAPH_FAILED;
+    }
+
+    auto ws = context->GetWorkspaceSizes(1);
+    if (ws != nullptr) {
+        ws[0] = 0; // 本方案无 workspace
+    }
+
+    tiling->totalNum = static_cast<int32_t>(totalNum);
+    tiling->coreNum = coreNum;
+    tiling->blockFactor = blockFactor;
+    tiling->blockNum = blockNum;
+    tiling->ubFactor = ubFactor;
+    tiling->ubLoopOfFormerBlock = ubLoopOfFormerBlock;
+    tiling->ubTailOfFormerBlock = ubTailOfFormerBlock;
+    tiling->ubLoopOfTailBlock = ubLoopOfTailBlock;
+    tiling->ubTailOfTailBlock = ubTailOfTailBlock;
+
     return ge::GRAPH_SUCCESS;
 }
 

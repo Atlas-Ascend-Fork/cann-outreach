@@ -15,122 +15,124 @@ namespace NsExp {
 
 using namespace AscendC;
 
-constexpr int32_t BUFFER_NUM = 2;
-// 单块 UB tensor 的字节上限：双缓冲下 (输入 2 块 + 输出 2 块) 共 4 块，
-// 控制在 32KB/块可保证总占用不超过 UB 容量
-constexpr int64_t MAX_TILE_BYTES = 32 * 1024;
-constexpr int64_t UB_BLOCK_BYTES = 32;
+constexpr int32_t BUFFER_NUM = 2; // 每队列 buffer 块数（双缓冲）
 
-template <typename T>
+template <typename DT_X>
 class Exp {
 public:
-    __aicore__ inline Exp(){};
+    __aicore__ inline Exp() {}
 
-    __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, const ExpTilingData* tilingData);
-    __aicore__ inline void Process();
+    __aicore__ inline void Init(GM_ADDR x, GM_ADDR y, const ExpTilingData* tilingData)
+    {
+        xGm_.SetGlobalBuffer((__gm__ DT_X*)x);
+        yGm_.SetGlobalBuffer((__gm__ DT_X*)y);
+
+        blockNum_ = tilingData->blockNum;
+        blockFactor_ = tilingData->blockFactor;
+        ubFactor_ = tilingData->ubFactor;
+        ubLoopOfFormerBlock_ = tilingData->ubLoopOfFormerBlock;
+        ubTailOfFormerBlock_ = tilingData->ubTailOfFormerBlock;
+        ubLoopOfTailBlock_ = tilingData->ubLoopOfTailBlock;
+        ubTailOfTailBlock_ = tilingData->ubTailOfTailBlock;
+
+        uint32_t tileBytes =
+            static_cast<uint32_t>(ubFactor_ * static_cast<int32_t>(sizeof(DT_X)));
+        // 防御双保险：空输入时 host 下发 block dim=1、9 个 tiling 字段全 0（blockNum=0、ubFactor=0），
+        // 此处跳过 InitBuffer(0)（tikicpulib 对 0 字节 buffer abort）；Process 入口由 blockNum_<=0
+        // 早退，不读写 GM（blockIdx 越界防御同样先行 return）。正常路径 ubFactor>0 恒成立，行为不变。
+        if (tileBytes > 0) {
+            pipe_.InitBuffer(inQueue_, BUFFER_NUM, tileBytes);
+            pipe_.InitBuffer(outQueue_, BUFFER_NUM, tileBytes);
+        }
+    }
+
+    __aicore__ inline void Process()
+    {
+        const int32_t blockIdx = static_cast<int32_t>(AscendC::GetBlockIdx());
+        // 越界/非法 tiling 防御（先于任何 GM 寻址）：
+        //   - blockNum_ <= 0：空输入（totalNum=0）产物或非法 tiling；
+        //   - blockIdx < 0 / blockIdx >= blockNum_：实际启动块数大于 blockNum 时，
+        //     超出块会按 former/tail 因子计算并越界读写 GM，必须直接返回。
+        if (blockNum_ <= 0 || blockIdx < 0 || blockIdx >= blockNum_) {
+            return;
+        }
+        const bool isLast = (blockIdx == blockNum_ - 1);
+        const int32_t loopNum = isLast ? ubLoopOfTailBlock_ : ubLoopOfFormerBlock_;
+        const int32_t tailNum = isLast ? ubTailOfTailBlock_ : ubTailOfFormerBlock_;
+        if (loopNum <= 0 || tailNum <= 0) {
+            return; // 防御：非法 tiling（loop/tail 非正）
+        }
+        // host 侧已保证 totalNum / blockFactor / blockNum ∈ (0, INT32_MAX]（越界 fail-fast），
+        // 且 blockIdx < blockNum_ ⇒ blockIdx × blockFactor_ ≤ (blockNum_ - 1) × blockFactor_
+        // < totalNum ≤ INT32_MAX；tile 累加不超过 blockFactor_。故 offset 及 offset+count
+        // 全程处于 int32 安全域，不会溢出。
+        int32_t offset = blockIdx * blockFactor_;
+        // 对齐判断外提：完整 tile（ubFactor 元素，256B 对齐）恒走 DataCopy 快速路径；
+        // 仅尾核最后一块可能非 32B 对齐，每块只判断一次，不在 tile 循环内重复取模。
+        bool tailUnaligned = isLast && ((tailNum * static_cast<int32_t>(sizeof(DT_X))) % 32 != 0);
+
+        for (int32_t i = 0; i < loopNum - 1; i++) {
+            ProcessTileAligned(offset, ubFactor_);
+            offset += ubFactor_;
+        }
+        // 尾 tile（含残差）：按对齐决定快速路径 / DataCopyPad 精确路径
+        if (tailUnaligned) {
+            ProcessTilePad(offset, tailNum);
+        } else {
+            ProcessTileAligned(offset, tailNum);
+        }
+    }
 
 private:
-    __aicore__ inline void CopyIn(int64_t progress, int64_t currentNum);
-    __aicore__ inline void CopyOut(int64_t progress, int64_t currentNum);
-    __aicore__ inline void Compute(int64_t currentNum);
+    __aicore__ inline void ProcessTileAligned(int32_t offset, int32_t count)
+    {
+        // 32B 对齐路径：DataCopy 连续搬运 + Exp + DataCopy 搬出（双队列双缓冲流水）
+        LocalTensor<DT_X> srcLocal = inQueue_.AllocTensor<DT_X>();
+        DataCopy(srcLocal, xGm_[offset], static_cast<uint32_t>(count));   // MTE2: GM→UB
+        inQueue_.EnQue(srcLocal);
+        LocalTensor<DT_X> dstLocal = outQueue_.AllocTensor<DT_X>();
+        srcLocal = inQueue_.DeQue<DT_X>();
+        AscendC::Exp(dstLocal, srcLocal, count);                          // V: 逐元素指数
+        outQueue_.EnQue(dstLocal);
+        inQueue_.FreeTensor(srcLocal);
+        dstLocal = outQueue_.DeQue<DT_X>();
+        DataCopy(yGm_[offset], dstLocal, static_cast<uint32_t>(count));   // MTE3: UB→GM
+        outQueue_.FreeTensor(dstLocal);
+    }
+
+    __aicore__ inline void ProcessTilePad(int32_t offset, int32_t count)
+    {
+        // 非 32B 对齐残差路径：DataCopyPad 精确搬运
+        LocalTensor<DT_X> srcLocal = inQueue_.AllocTensor<DT_X>();
+        DataCopyExtParams copyParams{
+            1, static_cast<uint32_t>(count * static_cast<int32_t>(sizeof(DT_X))), 0, 0, 0};
+        DataCopyPadExtParams<DT_X> padParams{false, 0, 0, 0};
+        DataCopyPad(srcLocal, xGm_[offset], copyParams, padParams);
+        inQueue_.EnQue(srcLocal);
+        LocalTensor<DT_X> dstLocal = outQueue_.AllocTensor<DT_X>();
+        srcLocal = inQueue_.DeQue<DT_X>();
+        AscendC::Exp(dstLocal, srcLocal, count);
+        outQueue_.EnQue(dstLocal);
+        inQueue_.FreeTensor(srcLocal);
+        dstLocal = outQueue_.DeQue<DT_X>();
+        DataCopyPad(yGm_[offset], dstLocal, copyParams);
+        outQueue_.FreeTensor(dstLocal);
+    }
 
 private:
-    TPipe pipe;
-    TQue<QuePosition::VECIN, BUFFER_NUM> inputQueueX;
-    TQue<QuePosition::VECOUT, BUFFER_NUM> outputQueueY;
-
-    GlobalTensor<T> inputGMX;
-    GlobalTensor<T> outputGMY;
-
-    int64_t blockLength_ = 0;
-    int64_t ubLength_ = 0;
+    AscendC::GlobalTensor<DT_X> xGm_;
+    AscendC::GlobalTensor<DT_X> yGm_;
+    AscendC::TPipe pipe_;
+    AscendC::TQue<AscendC::TPosition::VECIN, BUFFER_NUM> inQueue_;
+    AscendC::TQue<AscendC::TPosition::VECOUT, BUFFER_NUM> outQueue_;
+    int32_t blockNum_;
+    int32_t blockFactor_;
+    int32_t ubFactor_;
+    int32_t ubLoopOfFormerBlock_;
+    int32_t ubTailOfFormerBlock_;
+    int32_t ubLoopOfTailBlock_;
+    int32_t ubTailOfTailBlock_;
 };
-
-template <typename T>
-__aicore__ inline void Exp<T>::Init(GM_ADDR x, GM_ADDR y, const ExpTilingData* tilingData)
-{
-    const int64_t blockIdx = AscendC::GetBlockIdx();
-    const int64_t blockFactor = tilingData->blockFactor;
-    const int64_t remainderLength = tilingData->totalNum - blockFactor * blockIdx;
-    blockLength_ = (remainderLength > blockFactor) ? blockFactor : remainderLength;
-    if (blockLength_ < 0) {
-        blockLength_ = 0;
-    }
-
-    // ubFactor 由 host 按 UB 容量给出；若过大（如小 shape / 手工构造的 tiling），
-    // 在 kernel 内自动拆分为更小的 tile，保证双缓冲下 UB 不超限
-    const int64_t typeSize = static_cast<int64_t>(sizeof(T));
-    const int64_t alignElem = UB_BLOCK_BYTES / typeSize;
-    const int64_t maxTileElem = MAX_TILE_BYTES / typeSize;
-    int64_t tileElem = tilingData->ubFactor;
-    if (tileElem <= 0 || tileElem > maxTileElem) {
-        tileElem = maxTileElem;
-    }
-    ubLength_ = (tileElem / alignElem) * alignElem;
-    if (ubLength_ <= 0) {
-        ubLength_ = alignElem;
-    }
-
-    inputGMX.SetGlobalBuffer((__gm__ T*)x + blockFactor * blockIdx);
-    outputGMY.SetGlobalBuffer((__gm__ T*)y + blockFactor * blockIdx);
-
-    pipe.InitBuffer(inputQueueX, BUFFER_NUM, ubLength_ * typeSize);
-    pipe.InitBuffer(outputQueueY, BUFFER_NUM, ubLength_ * typeSize);
-}
-
-template <typename T>
-__aicore__ inline void Exp<T>::CopyIn(int64_t progress, int64_t currentNum)
-{
-    AscendC::LocalTensor<T> xLocal = inputQueueX.template AllocTensor<T>();
-    AscendC::DataCopyExtParams copyParams;
-    copyParams.blockCount = 1;
-    copyParams.blockLen = static_cast<uint32_t>(currentNum * static_cast<int64_t>(sizeof(T)));
-    copyParams.srcStride = 0;
-    copyParams.dstStride = 0;
-    copyParams.rsv = 0;
-    AscendC::DataCopyPadExtParams<T> padParams{false, 0, 0, static_cast<T>(0)};
-    AscendC::DataCopyPad(xLocal, inputGMX[progress * ubLength_], copyParams, padParams);
-    inputQueueX.EnQue(xLocal);
-}
-
-template <typename T>
-__aicore__ inline void Exp<T>::Compute(int64_t currentNum)
-{
-    AscendC::LocalTensor<T> xLocal = inputQueueX.template DeQue<T>();
-    AscendC::LocalTensor<T> yLocal = outputQueueY.template AllocTensor<T>();
-    AscendC::Exp(yLocal, xLocal, static_cast<int32_t>(currentNum));
-    outputQueueY.template EnQue<T>(yLocal);
-    inputQueueX.FreeTensor(xLocal);
-}
-
-template <typename T>
-__aicore__ inline void Exp<T>::CopyOut(int64_t progress, int64_t currentNum)
-{
-    AscendC::LocalTensor<T> yLocal = outputQueueY.template DeQue<T>();
-    AscendC::DataCopyExtParams copyParams;
-    copyParams.blockCount = 1;
-    copyParams.blockLen = static_cast<uint32_t>(currentNum * static_cast<int64_t>(sizeof(T)));
-    copyParams.srcStride = 0;
-    copyParams.dstStride = 0;
-    copyParams.rsv = 0;
-    AscendC::DataCopyPad(outputGMY[progress * ubLength_], yLocal, copyParams);
-    outputQueueY.FreeTensor(yLocal);
-}
-
-template <typename T>
-__aicore__ inline void Exp<T>::Process()
-{
-    if (blockLength_ <= 0) {
-        return;
-    }
-    const int64_t loopCount = (blockLength_ + ubLength_ - 1) / ubLength_;
-    for (int64_t i = 0; i < loopCount; i++) {
-        const int64_t currentNum = (i == (loopCount - 1)) ? (blockLength_ - ubLength_ * i) : ubLength_;
-        CopyIn(i, currentNum);
-        Compute(currentNum);
-        CopyOut(i, currentNum);
-    }
-}
 
 } // namespace NsExp
 #endif // EXP_H
