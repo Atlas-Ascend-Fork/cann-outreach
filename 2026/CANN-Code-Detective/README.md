@@ -15,10 +15,14 @@
 | 02 | DivBf16Custom | 使用 TBuf 管理 bfloat16 类型转换的临时内存，实现 bfloat16 除法 | ★ | 已发布 |
 | 03 | CoshCustom | 实现双曲余弦（cosh）算子 | ★ | 已发布 |
 | 04 | DivCustomTemplate | 工程化算子开发：基于算子原型文件使用 msopgen 生成工程，实现 div 算子 | ★★ | 已发布 |
-| 05 | MulCustom | 实现两个输入张量的逐元素乘法运算 | ★ | - |
-| 06 | 待发布 |  |  | 未开始 |
-| 07 | 待发布 |  |  | 未开始 |
-| 08 | 待发布 |  |  | 未开始 |
+| 05 | MulCustom | 实现两个输入张量的逐元素乘法运算 | ★ | 已发布 |
+| 06 | ReluCustom | 开源仓规范化算子开发：实现逐元素 ReLU 激活算子（Tiling 函数 + 核函数） | ★★ | 已发布 |
+| 07 | SigmoidCustom | 开源仓规范化算子开发：组合 Exp、Reciprocal 等指令实现 Sigmoid 激活算子 | ★★ | 已发布 |
+| 08 | TanhCustom | 开源仓规范化算子开发：组合 Exp、Div 等指令实现 Tanh 激活算子 | ★★ | 已发布 |
+| 09 | MatmulAddRelu | 使用 Catlass Python 实现融合算子 Y = ReLU(A @ B + X)，Cube 矩阵乘与 Vector 计算协同 | ★★★ | 已发布 |
+| 10 | ExpCustom | 开源仓规范化算子开发：实现逐元素自然指数（Exp）算子 | ★★ | 已发布 |
+| 11 | SqrtCustom | 开源仓规范化算子开发：实现逐元素平方根（Sqrt）算子 | ★★ | 已发布 |
+| 12 | AbsCustom | 开源仓规范化算子开发：实现逐元素绝对值（Abs）算子 | ★★ | 已发布 |
 
 > 将视情况新增后续期数。
 
