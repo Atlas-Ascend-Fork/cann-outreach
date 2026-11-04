@@ -19,15 +19,7 @@ if [ -z "${BASE_LIBS_PATH:-}" ]; then
             export ASCEND_HOME_PATH="$ASCEND_AICPU_PATH"
         fi
     else
-<<<<<<< HEAD
         export ASCEND_HOME_PATH
-=======
-<<<<<<< HEAD
-        export ASCEND_HOME_PATH="$ASCEND_HOME_PATH"
-=======
-        export ASCEND_HOME_PATH
->>>>>>> lesson3
->>>>>>> lesson1
     fi
 else
     export ASCEND_HOME_PATH="$BASE_LIBS_PATH"
@@ -41,18 +33,10 @@ rm -rf "$BUILD_DIR"/*
 opts=$(python3 "$ASCEND_HOME_PATH/tools/tikcpp/ascendc_kernel_cmake/fwk_modules/util/preset_parse.py" "$script_path/CMakePresets.json")
 cmake_version=$(cmake --version | grep "cmake version" | awk '{print $3}')
 
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-if [ "$cmake_version" \< "3.19.0" ] ; then
-    cmake -S . -B "$BUILD_DIR" "$opts"
-=======
->>>>>>> lesson1
 cmake_major=$(echo "$cmake_version" | cut -d. -f1)
 cmake_minor=$(echo "$cmake_version" | cut -d. -f2)
 if [ "$cmake_major" -lt 3 ] || { [ "$cmake_major" -eq 3 ] && [ "$cmake_minor" -lt 19 ]; }; then
     cmake -S . -B "$BUILD_DIR" $opts
->>>>>>> lesson3
 else
     cmake -S . -B "$BUILD_DIR" --preset=default
 fi

@@ -178,9 +178,6 @@ Result SampleRes50ImagenetClassification::Process() {
 
     aclError aclRet = aclmdlExecute(modelId_, modelInput_->GetDataSet(), modelOutput_->GetDataSet());
     if (aclRet != ACL_SUCCESS) {
-      return FAILED;
-    aclError aclRet = aclmdlExecute(modelId_, modelInput_->GetDataSet(), modelOutput_->GetDataSet());
-    if (aclRet != ACL_SUCCESS) {
       ERROR_LOG("execute model failed, errorCode is %d", static_cast<int32_t>(aclRet));
       aclrtFree(picDevBuffer);
       return FAILED;

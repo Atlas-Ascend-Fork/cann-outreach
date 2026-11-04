@@ -11,20 +11,11 @@ static ge::graphStatus TilingFunc(gert::TilingContext* context)
   int64_t data_sz = 1;
   for (int i = 0; i < x1_shape->GetStorageShape().GetDimNum(); i++)
     data_sz *= x1_shape->GetStorageShape().GetDim(i);
-<<<<<<< HEAD
   
   // 单块处理256个元素，向上取整计算分块数
   const uint32_t tileSize = 256;
   tiling->totalLength = data_sz;
   tiling->tileNum = (data_sz + tileSize - 1) / tileSize;
-=======
-  constexpr uint32_t tileSize = 256;
-  if (data_sz > static_cast<int64_t>(UINT32_MAX)) {
-    return ge::GRAPH_FAILED;
-  }
-  tiling->totalLength = static_cast<uint32_t>(data_sz);
-  tiling->tileNum = static_cast<uint32_t>((data_sz + tileSize - 1) / tileSize);
->>>>>>> master
   context->SetBlockDim(8);
   size_t *currentWorkspace = context->GetWorkspaceSizes(1);
   currentWorkspace[0] = 0;

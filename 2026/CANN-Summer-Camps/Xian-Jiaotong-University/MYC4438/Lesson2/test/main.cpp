@@ -121,7 +121,6 @@ int main(int argc, char **argv)
     }
     // Create inputX aclTensor
     ret = CreateAclTensor(inputXHostData, inputXShape, &inputXDeviceAddr, aclDataType::ACL_FLOAT16, &inputX);
-<<<<<<< HEAD
     CHECK_RET(ret == ACL_SUCCESS, std::vector<void *> tensors = {inputX, nullptr, nullptr}; std::vector<void *> deviceAddrs = {inputXDeviceAddr, nullptr, nullptr}; DestroyResources(tensors, deviceAddrs, stream, deviceId); return FAILED);
     // Create inputY aclTensor
     ret = CreateAclTensor(inputYHostData, inputYShape, &inputYDeviceAddr, aclDataType::ACL_FLOAT16, &inputY);
@@ -133,21 +132,6 @@ int main(int argc, char **argv)
     // 所有tensor创建完成后，初始化资源列表
     std::vector<void *> tensors = {inputX, inputY, outputZ};
     std::vector<void *> deviceAddrs = {inputXDeviceAddr, inputYDeviceAddr, outputZDeviceAddr};
-=======
-    CHECK_RET(ret == ACL_SUCCESS, DestroyResources(tensors, deviceAddrs, stream, deviceId); return FAILED);
-    tensors[0] = inputX; deviceAddrs[0] = inputXDeviceAddr;
-    // Create inputY aclTensor
-    ret = CreateAclTensor(inputYHostData, inputYShape, &inputYDeviceAddr, aclDataType::ACL_FLOAT16, &inputY);
-    CHECK_RET(ret == ACL_SUCCESS, DestroyResources(tensors, deviceAddrs, stream, deviceId); return FAILED);
-    tensors[1] = inputY; deviceAddrs[1] = inputYDeviceAddr;
-    // Create outputZ aclTensor
-    ret = CreateAclTensor(outputZHostData, outputZShape, &outputZDeviceAddr, aclDataType::ACL_FLOAT16, &outputZ);
-    CHECK_RET(ret == ACL_SUCCESS, DestroyResources(tensors, deviceAddrs, stream, deviceId); return FAILED);
-    tensors[2] = outputZ; deviceAddrs[2] = outputZDeviceAddr;
-<<<<<<< HEAD
-=======
->>>>>>> lesson3
->>>>>>> lesson1
 
     // 3. Call the API of the custom operator library
     uint64_t workspaceSize = 0;
