@@ -212,7 +212,6 @@ TruncateMod/
 │   ├── REVIEW.md                 # 代码审查报告（Round 0）
 │   ├── WALKTHROUGH.md            # 设计串讲质疑清单
 │   ├── environment.md            # 环境检查报告
-│   ├── perf/round_001/summary.txt    # 性能验收摘要
 │   └── precision/summary.txt         # 精度验收摘要
 │
 └── build/                        # 构建输出（构建后生成）
@@ -415,7 +414,7 @@ numpy 中两个 0-d 标量广播结果为 0-d；本算子统一输出 shape `[1]
 
 ## 11. 性能
 
-性能验收数据位于 [`docs/perf/round_001/`](docs/perf/round_001/summary.txt)。
+性能验收数据列于下表。
 
 | 指标 | 值 |
 |------|------|
@@ -444,7 +443,6 @@ numpy 中两个 0-d 标量广播结果为 0-d；本算子统一输出 shape `[1]
 | [`docs/REVIEW.md`](docs/REVIEW.md) | 代码审查报告（Round 0）：8 维度评审，总分 92/100，PASS |
 | [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md) | 设计串讲质疑清单：10 个问题的审查与 Architect 回应 |
 | [`docs/environment.md`](docs/environment.md) | 环境检查报告：硬件/CANN/编译器/asc-devkit |
-| [`docs/perf/round_001/summary.txt`](docs/perf/round_001/summary.txt) | 性能验收摘要 |
 | [`docs/precision/summary.txt`](docs/precision/summary.txt) | 精度验收摘要 |
 
 ---

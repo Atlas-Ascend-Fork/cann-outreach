@@ -1,5 +1,5 @@
-cat << EOF  > "$archname"
 #!/bin/bash
+cat << EOF  > "$archname"
 # This script was generated using Makeself $MS_VERSION
 # The license covering this archive and its contents, if any, is wholly independent of the Makeself license (GPL)
 

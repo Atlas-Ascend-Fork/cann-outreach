@@ -24,9 +24,9 @@ KADC 2026（Kunpeng Ascend Developer Conference 2026）是华为鲲鹏与昇腾�
 
 ```
 KADC/
-├── pyPTO/          
-├── AscendC/        
-└── CANNbot/        
+├── CANNBot/
+├── PyPTO/
+└── op_tester/
 ```
 
 ## 相关链接

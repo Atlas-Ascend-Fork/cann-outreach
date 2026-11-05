@@ -57,4 +57,4 @@ CANN 社区基于 GitCode 的 Issue 管理功能，完整记录[用户行为准�
 完成 CLA 签署并确定贡献方向后，即可开始您的社区贡献之旅！社区欢迎各种形式（Issue、PR、会议、邮件、软件包等）的贡献，每一种贡献都将受到重视。您可以对 Issue 进行查找、创建、评论、处理等操作。具体操作步骤请参阅：[Issue 操作指南](https://gitcode.com/cann/community/blob/master/contributor/issue-operation.md)。
 
 ## 提交 PR
-参与 CANN 社区代码贡献时，提交 PR 前需完成开发环境准备，并仔细了解项目特定的开发规范和版权声明要求（如涉及开源代码片段引用，请参考[片段引用指导](https://gitcode.com/cann/community/blob/master/contributor/third_party/snippet-reference-guildline.md)），确保您的贡献符合项目标准。具体操作步骤请参阅：[PR 操作指南](https://gitcode.com/cann/community/blob/master/contributor/pull_request_operation.md)。
+参与 CANN 社区代码贡献时，提交 PR 前需完成开发环境准备，并仔细了解项目特定的开发规范和版权声明要求（如涉及开源代码片段引用，请参考[片段引用指导](https://gitcode.com/cann/community/blob/master/contributor/third_party/snippet-reference-guideline.md)），确保您的贡献符合项目标准。具体操作步骤请参阅：[PR 操作指南](https://gitcode.com/cann/community/blob/master/contributor/pull_request_operation.md)。

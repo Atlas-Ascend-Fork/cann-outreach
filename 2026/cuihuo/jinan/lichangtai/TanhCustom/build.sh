@@ -1,5 +1,5 @@
-
 #!/bin/bash
+
 if [ -z "$BASE_LIBS_PATH" ]; then
     if [ -z "$ASCEND_HOME_PATH" ]; then
         if [ -z "$ASCEND_AICPU_PATH" ]; then

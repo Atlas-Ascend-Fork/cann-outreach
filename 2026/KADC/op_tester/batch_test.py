@@ -95,9 +95,9 @@ def test_abs_torch() -> OpRecord:
         rec.num_cases += 1
         if passed: rec.num_pass += 1
         else: rec.num_fail += 1
-    rec.status = "PASS" if rec.num_fail == 0 else "FAIL"
-    rec.note = "kernel 触发 NPU vector core 异常 / 输出错误"
+    rec.note = "kernel 触发 NPU vector core 异常 / 输出错误" if rec.num_fail > 0 else ""
     _append_abs_bin_diag(rec)
+    rec.status = "PASS" if rec.num_fail == 0 else "FAIL"
     return rec
 
 
@@ -122,9 +122,10 @@ def _append_abs_bin_diag(rec: OpRecord):
         tot = len(g)
         md = float(d.max()) if tot else 0.0
         passed = mism == 0
+        bin_note = (f"可执行文件输出与 |x| 比对一致 ({tot} 元素)" if passed
+                    else f"可执行文件输出与 |x| 比对失败: {mism}/{tot} 元素超差")
         rec.cases.append(CaseRecord("abs", "Bin(exec)", "B1", "32768 (1D, 硬编码)",
-                                    "PASS" if passed else "FAIL", f"{md:.3e}", "n/a", "n/a",
-                                    f"run.sh OP_NAME=add 致无法运行; golden.py 误用 add; 可执行文件 {mism}/{tot} 元素错误(尾部未写)"))
+                                    "PASS" if passed else "FAIL", f"{md:.3e}", "n/a", "n/a", bin_note))
         rec.num_cases += 1
         if passed: rec.num_pass += 1
         else: rec.num_fail += 1
