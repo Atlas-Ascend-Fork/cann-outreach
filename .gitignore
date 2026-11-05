@@ -1,1 +1,9 @@
 2026/CANN-Code-Detective/Challenge04-DivCustomTemplate/kandice/DivCustomTemplate/custom_op/build_out
+
+# 通用构建产物与缓存（Issue #8）
+**/build/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/__pycache__/
+*.pyc

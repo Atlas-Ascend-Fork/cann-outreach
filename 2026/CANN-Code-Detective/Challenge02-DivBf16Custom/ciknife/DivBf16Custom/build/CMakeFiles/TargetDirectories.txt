@@ -1,3 +1,0 @@
-/workspace/cann-outreach/2026/CANN-Code-Detective/Challenge02-DivBf16Custom/ciknife/DivBf16Custom/build/CMakeFiles/div_bf16_test.dir
-/workspace/cann-outreach/2026/CANN-Code-Detective/Challenge02-DivBf16Custom/ciknife/DivBf16Custom/build/CMakeFiles/edit_cache.dir
-/workspace/cann-outreach/2026/CANN-Code-Detective/Challenge02-DivBf16Custom/ciknife/DivBf16Custom/build/CMakeFiles/rebuild_cache.dir

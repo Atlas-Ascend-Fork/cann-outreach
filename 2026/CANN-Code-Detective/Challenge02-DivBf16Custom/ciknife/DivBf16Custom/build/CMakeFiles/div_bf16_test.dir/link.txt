@@ -1,1 +1,0 @@
-/usr/local/Ascend/cann-9.1.0-beta.3/bin/bisheng CMakeFiles/div_bf16_test.dir/div_bf16_custom.asc.o -o div_bf16_test 
