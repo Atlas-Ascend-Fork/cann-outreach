@@ -7,3 +7,9 @@
 **/cmake_install.cmake
 **/__pycache__/
 *.pyc
+
+# WPS 自动备份文件（体积大，禁止入库；GitCode 单文件上限 10MB）
+*.wppsnapshot
+*.wppsnapshot.*
+**/.wpp_backup/
+**/wpp_backup/
