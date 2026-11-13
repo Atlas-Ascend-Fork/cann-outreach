@@ -1,0 +1,30 @@
+/*!
+ * \file exp.cpp
+ * \brief Exp 算子 kernel 入口
+ */
+
+#include "exp.h"
+
+// schMode 取值必须与 op_kernel/exp_tiling_key.h 的 EXP_TPL_SCH_HALF / EXP_TPL_SCH_FLOAT 一致
+enum class ExpTilingKey : uint32_t
+{
+    TILING_KEY_EXP_HALF = EXP_TPL_SCH_HALF,
+    TILING_KEY_EXP_FLOAT = EXP_TPL_SCH_FLOAT,
+};
+
+template <uint32_t schMode>
+__global__ __aicore__ void exp(GM_ADDR x, GM_ADDR y, GM_ADDR workspace, GM_ADDR tiling)
+{
+    REGISTER_TILING_DEFAULT(ExpTilingData);
+    GET_TILING_DATA_WITH_STRUCT(ExpTilingData, tilingData, tiling);
+    if constexpr (schMode == static_cast<uint32_t>(ExpTilingKey::TILING_KEY_EXP_HALF)) {
+        NsExp::Exp<half> op;
+        op.Init(x, y, &tilingData);
+        op.Process();
+    }
+    if constexpr (schMode == static_cast<uint32_t>(ExpTilingKey::TILING_KEY_EXP_FLOAT)) {
+        NsExp::Exp<float> op;
+        op.Init(x, y, &tilingData);
+        op.Process();
+    }
+}
