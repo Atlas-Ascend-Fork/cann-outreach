@@ -1,0 +1,103 @@
+Challenge 09 · MatmulAddRelu 补全 —— 自验证报告
+================================================
+
+⚠️ 声明（请先读这一段）
+--------------------------------------------------
+本报告**不是** Ascend 950 实机 PASS 截图的替代品，也不冒充它。
+提交者环境无 Ascend NPU（无 /dev/davinci0），因此
+`test_matmul_add_relu.py` **未被执行**，没有产出实机 PASS 图片。
+
+以下每一项都是**实际执行过的检查**，命令与输出如实列出。
+未跑过的不说跑过；本文不含任何实测时延、吞吐或 TFLOPS 数字。
+
+执行时间：2026-10-16
+执行环境：x86_64 Linux，无 NPU，Python 3（系统自带）
+
+
+[1] 语法检查                                    结果：PASS
+--------------------------------------------------
+命令：
+    cd 2026/CANN-Code-Detective/Challenge09-MatmulAddRelu
+    python3 -m py_compile PR_code/HansonZhang/matmul_add_relu.py \
+                          PR_code/HansonZhang/test_matmul_add_relu.py
+输出：
+    PY-COMPILE-OK
+说明：仅证明 Python 语法合法。**不证明** Catlass DSL 能编译或能跑通。
+
+
+[2] 验证脚本与官方 Template 字节一致            结果：PASS
+--------------------------------------------------
+命令：
+    cmp Template/test_matmul_add_relu.py PR_code/HansonZhang/test_matmul_add_relu.py
+输出：
+    TEST-IDENTICAL-OK
+说明：未对官方判定脚本做任何改动（改了等于自改考卷）。
+
+
+[3] 改动范围审计                                结果：PASS
+--------------------------------------------------
+命令：
+    diff -u Template/matmul_add_relu.py PR_code/HansonZhang/matmul_add_relu.py | grep -c '^@@'
+输出：
+    5
+补充核对：
+    残留裸 pass 数量        = 0
+    残留「请补充」标记数量 = 0
+说明：5 个 hunk 恰好对应 TODO 1~5；删除的都是 5 个 `pass`；
+      每处 TODO 的上下分隔线边界未被破坏；分块、同步与 GM 写回框架零改动。
+
+
+[4] 算法级数值仿真（含反向对照）              结果：PASS
+--------------------------------------------------
+命令：
+    cd PR_code/HansonZhang && python3 algosim.py
+输出：
+    [算法仿真] max|diff| = 1.52588e-05
+    [算法仿真] 不匹配元素 = 0 / 65536
+    [算法仿真] 输出全非负 = True
+    [反向对照] 先 ReLU 后 Add 的写法不匹配 = 35348 （应 > 0）
+    ALGO-SIM PASS
+
+说明：仿真用 NumPy 复刻了核函数的控制流（4 次 K 分片累加 → SPLIT_M 分行
+      → Add → ReLU → 写回），逐元素对照 `relu(A@B + X)`。
+
+      **反向对照的意义**：只证明「仿真没报错」是不够的，恒真的仿真也会 PASS。
+      因此额外把本题真值 ReLU(A@B+X) 故意实现为错误顺序 ReLU(A@B)+X，
+      看错误数是否显著大于 0 —— 实测 35348/65536 错误率过半，
+      说明该仿真**有鉴别力**，不是摆设。
+
+
+[5] 确定性性能量导出                            结果：PASS
+--------------------------------------------------
+命令：
+    cd PR_code/HansonZhang && python3 perf_facts.py
+关键输出：
+    K 轴分片数                  = 4
+    SPLIT_M 每 AIV 行数         = 128，整除余数 0（负载完全均衡）
+    每行 SIMD 向量数            = 4，尾掩码开销 0
+    GM 访存合计                 = 786,432 B (768 KiB)
+    矩阵乘 FLOPs                = 33,554,432
+    算术强度 AI                 = 42.67 FLOP/B
+    每 AIV UB 工作集            = 196,608 B (192 KiB)，占 256 KiB 的 75%
+    L0C 累加片上读写            = 1,048,576 B（4 次 mmad × 256 KiB）
+
+说明：这些量全部由算子代码与任务书推导，**不含任何硬件假设**，
+      故与 NPU 型号无关。详细推导见 PERF-ANALYSIS.md。
+
+
+================================================
+ 未完成项（诚实列出）
+================================================
+
+✗ 实机运行 test_matmul_add_relu.py —— 无 Ascend NPU 算力
+✗ 实机 PASS 截图                        —— 同上
+✗ 实测时延 / 吞吐 / TFLOPS              —— 同上；PERF-ANALYSIS.md 中
+                                           硬件相关量一律以符号 P、BW 保留，
+                                           未代入任何猜测值
+
+补齐方式：
+    在 Ascend 950 + CANN ≥ 9.1.0 环境中，于本目录执行
+        bash verify_hidevlab.sh
+    该脚本会自动探测 npu-smi / CANN / 依赖版本并运行官方验证脚本。
+
+================================================

@@ -1,0 +1,9 @@
+{
+  "mismatches_vs_reference": 0,
+  "max_abs_err_vs_reference": 1.33514404296875e-05,
+  "reverse_control_mismatches": 35006,
+  "device_values_checked": 36,
+  "device_values_equal": 36,
+  "device_value_mismatches": [],
+  "all_checks_ok": true
+}
