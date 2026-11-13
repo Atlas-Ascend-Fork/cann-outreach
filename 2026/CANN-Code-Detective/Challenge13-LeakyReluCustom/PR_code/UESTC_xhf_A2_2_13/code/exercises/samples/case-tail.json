@@ -1,0 +1,53 @@
+{
+  "source_case": "unaligned multicore regression",
+  "function": "impl",
+  "attributes": {
+    "negative_slope": 0.125
+  },
+  "inputs": [
+    {
+      "name": "x",
+      "kind": "required",
+      "tensors": [
+        {
+          "file": "x_tail.bin",
+          "dtype": "float32",
+          "shape": [
+            1,
+            1031
+          ],
+          "bytes": 4124,
+          "elements": 1031,
+          "range": [
+            -10,
+            10
+          ],
+          "value": null,
+          "value_url": null,
+          "value_sha256": null
+        }
+      ]
+    }
+  ],
+  "outputs": [
+    {
+      "name": "y",
+      "kind": "required",
+      "tensors": [
+        {
+          "file": "y_tail.bin",
+          "dtype": "float32",
+          "shape": [
+            1,
+            1031
+          ],
+          "bytes": 4124,
+          "elements": 1031,
+          "rtol": 0.0001,
+          "atol": 0.0001,
+          "tol": 0.0001
+        }
+      ]
+    }
+  ]
+}
