@@ -1,0 +1,9 @@
+# challenge12_abscustom
+
+提交团队: 武汉贞坤电子有限公司
+提交者: TangYunCheng
+
+
+## 算子实现介绍
+
+本Abs算子实现方式：op_host侧在AbsTilingFunc中获取平台UB大小与AIV核数，将输入shape各维相乘得到totalLength，按核数做多核切分得到blockFactor并向下对齐到UB Block，再根据UB容量、dtype字节数与双缓冲需求计算ubFactor，同时依据输入dtype（float16/bf16选MODE_0、float32选MODE_1）设置tilingKey，并通过SetBlockDim配置实际启动核数；op_kernel侧模板类Abs&lt;T&gt;在Init中按GetBlockIdx()计算本核GM起始偏移与blockLength_并调用SetGlobalBuffer绑定输入输出，用TPipe初始化两个BUFFER_NUM=2的VECIN/VECOUT队列实现Double Buffer，Process中按ubFactor循环分块，依次执行CopyIn（AllocTensor+DataCopy搬入UB）、Compute（DeQue后调用AscendC::Abs逐元素取绝对值再EnQue）、CopyOut（DeQue后DataCopy搬回GM并FreeTensor），从而完成多核并行、UB分块流水的逐元素绝对值计算。
