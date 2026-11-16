@@ -1,0 +1,130 @@
+/*!
+ * \file tanh_tiling.cpp
+ * \brief Tanh 算子 Tiling 实现
+ */
+
+#include "register/op_def_registry.h"
+#include "op_common/log/log.h"
+#include "op_common/op_host/util/math_util.h"
+#include "op_common/op_host/util/platform_util.h"
+#include "../op_kernel/tanh_tiling_data.h"
+#include "../op_kernel/tanh_tiling_key.h"
+
+namespace optiling {
+
+using Ops::Base::CeilDiv;
+using Ops::Base::CeilAlign;
+using Ops::Base::FloorDiv;
+using Ops::Base::FloorAlign;
+using Ops::Base::GetUbBlockSize;
+
+constexpr uint32_t WS_SYS_SIZE = 0U;
+constexpr int64_t TYPE_SIZE = 4;
+constexpr int64_t MIN_SPLIT_THRESHOLD = 1024;
+
+static const gert::Shape g_vec_1_shape = {1};
+
+static inline const gert::Shape EnsureNotScalar(const gert::Shape& in_shape) {
+    if (in_shape.GetDimNum() == 0) {
+        return g_vec_1_shape;
+    }
+    return in_shape;
+}
+
+static ge::graphStatus GetPlatformInfo(gert::TilingContext* context, uint64_t& ubSize, int64_t& coreNum)
+{
+    fe::PlatFormInfos* platformInfoPtr = context->GetPlatformInfo();
+    OP_CHECK_NULL_WITH_CONTEXT(context, platformInfoPtr);
+    auto ascendcPlatform = platform_ascendc::PlatformAscendC(platformInfoPtr);
+    coreNum = ascendcPlatform.GetCoreNumAiv();
+    OP_CHECK_IF(coreNum == 0, OP_LOGE(context, "coreNum is 0"), return ge::GRAPH_FAILED);
+    ascendcPlatform.GetCoreMemSize(platform_ascendc::CoreMemType::UB, ubSize);
+    OP_CHECK_IF(ubSize == 0, OP_LOGE(context, "ubSize is 0"), return ge::GRAPH_FAILED);
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus GetWorkspaceSize(gert::TilingContext* context)
+{
+    size_t* currentWorkspace = context->GetWorkspaceSizes(1);
+    OP_CHECK_NULL_WITH_CONTEXT(context, currentWorkspace);
+    currentWorkspace[0] = WS_SYS_SIZE;
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus TanhTilingFunc(gert::TilingContext* context)
+{
+    uint64_t ubSize;
+    int64_t coreNum;
+    OP_CHECK_IF(
+        GetPlatformInfo(context, ubSize, coreNum) != ge::GRAPH_SUCCESS,
+        OP_LOGE(context, "GetPlatformInfo error"),
+        return ge::GRAPH_FAILED);
+
+    OP_CHECK_IF(
+        GetWorkspaceSize(context) != ge::GRAPH_SUCCESS,
+        OP_LOGE(context, "GetWorkspaceSize error"),
+        return ge::GRAPH_FAILED);
+
+    TanhTilingData* tiling = context->GetTilingData<TanhTilingData>();
+    OP_CHECK_NULL_WITH_CONTEXT(context, tiling);
+
+    // 获取输入形状和数据类型
+    auto inputDesc = context->GetInputDesc(0);
+    OP_CHECK_NULL_WITH_CONTEXT(context, inputDesc);
+    auto inputShape = context->GetInputShape(0);
+    OP_CHECK_NULL_WITH_CONTEXT(context, inputShape);
+
+    int64_t totalNum = static_cast<int64_t>(inputShape->GetShape().GetShapeSize());
+    ge::DataType dtype = inputDesc->GetDataType();
+    int64_t dtypeSize = (dtype == ge::DT_FLOAT16 || dtype == ge::DT_BF16) ? 2 : 4;
+
+    // 选核数：找不超过 coreNum 且能整除 totalNum 的最大核数
+    int64_t blockFactor = coreNum;
+    while (blockFactor > 1 && (totalNum % blockFactor != 0)) {
+        blockFactor--;
+    }
+    int64_t blockLength = totalNum / blockFactor;
+
+    // 算单次搬进 UB 的元素数：输入 x + 输出 y = 2 块，double buffer = 4 块
+    int64_t ubBlockSize = static_cast<int64_t>(GetUbBlockSize(context));
+    int64_t ubFactor = static_cast<int64_t>(ubSize / (dtypeSize * 4));
+    ubFactor = (ubFactor / ubBlockSize) * ubBlockSize;
+    if (ubFactor == 0) {
+        ubFactor = ubBlockSize;
+    }
+    // 保证 blockLength 能被 ubFactor 整除
+    while (ubFactor > blockLength || (blockLength % ubFactor != 0)) {
+        ubFactor -= ubBlockSize;
+        if (ubFactor <= ubBlockSize) {
+            ubFactor = ubBlockSize;
+            break;
+        }
+    }
+
+    tiling->totalNum = static_cast<uint32_t>(totalNum);
+    tiling->blockFactor = static_cast<uint32_t>(blockFactor);
+    tiling->ubFactor = static_cast<uint32_t>(ubFactor);
+
+    context->SetBlockDim(static_cast<uint32_t>(blockFactor));
+
+    // 根据输入 dtype 选择 tilingKey
+    uint64_t tilingKey;
+    if (inputDesc != nullptr && (inputDesc->GetDataType() == ge::DT_FLOAT16 || inputDesc->GetDataType() == ge::DT_BF16)) {
+        tilingKey = GET_TPL_TILING_KEY(TANH_TPL_SCH_MODE_0);
+    } else {
+        tilingKey = GET_TPL_TILING_KEY(TANH_TPL_SCH_MODE_1);
+    }
+    context->SetTilingKey(tilingKey);
+    return ge::GRAPH_SUCCESS;
+}
+
+static ge::graphStatus TilingParseForTanh([[maybe_unused]] gert::TilingParseContext* context)
+{
+    return ge::GRAPH_SUCCESS;
+}
+
+struct TanhCompileInfo {};
+
+IMPL_OP_OPTILING(Tanh).Tiling(TanhTilingFunc).TilingParse<TanhCompileInfo>(TilingParseForTanh);
+
+} // namespace optiling
