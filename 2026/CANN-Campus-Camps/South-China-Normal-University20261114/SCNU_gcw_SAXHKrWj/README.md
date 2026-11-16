@@ -2,10 +2,10 @@
 
 ## 团队信息
 
-- 提交者: 唐晟
+- 提交者: gcw_SAXHKrWj
 - 身份: 学生
 - 单位: 华南师范大学
 
 ## 成员
 
-- 唐晟 (gcw_SAXHKrWj): 提交者
+- gcw_SAXHKrWj (gcw_SAXHKrWj): 提交者
