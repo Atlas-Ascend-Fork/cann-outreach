@@ -2,10 +2,10 @@
 
 ## 团队信息
 
-- 提交者: hideandseek
+- 提交者: 吕家烺
 - 身份: 学生
 - 单位: 华南师范大学
 
 ## 成员
 
-- hideandseek (hideandseek): 提交者
+- 吕家烺 (hideandseek): 提交者
