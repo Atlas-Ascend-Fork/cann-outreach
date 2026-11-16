@@ -1,0 +1,27 @@
+#ifndef TILING_KEY_MUL_H
+#define TILING_KEY_MUL_H
+
+#include "ascendc/host_api/tiling/template_argument.h"
+
+// 与 Kernel 中 template <typename DT_X> 对应，
+// 使用原生数据类型声明。
+ASCENDC_TPL_ARGS_DECL(
+    Mul,
+    ASCENDC_TPL_DATATYPE_DECL(
+        DT_X,
+        C_DT_FLOAT,
+        C_DT_FLOAT16
+    )
+);
+
+ASCENDC_TPL_SEL(
+    ASCENDC_TPL_ARGS_SEL(
+        ASCENDC_TPL_DATATYPE_SEL(
+            DT_X,
+            C_DT_FLOAT,
+            C_DT_FLOAT16
+        )
+    )
+);
+
+#endif
