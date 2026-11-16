@@ -2,10 +2,10 @@
 
 ## 团队信息
 
-- 提交者: 温若孜
+- 提交者: warm-water
 - 身份: 学生
 - 单位: 华南师范大学
 
 ## 成员
 
-- 温若孜 (warm-water): 提交者
+- warm-water (warm-water): 提交者
