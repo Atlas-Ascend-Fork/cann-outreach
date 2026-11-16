@@ -1,0 +1,75 @@
+// Host侧Tiling实现
+#include "register/op_def_registry.h"
+#include "tiling/platform/platform_ascendc.h"
+
+#include "../op_kernel/mul_tiling.h"
+#include "../op_kernel/tiling_key_mul.h"
+
+namespace optiling {
+    const uint32_t TILE_NUM = 8;
+    static ge::graphStatus TilingFunc(gert::TilingContext *context) {
+        // 示例: 获取算子输入数组信息
+        const gert::Tensor *tensor_x = context->GetRequiredInputTensor(0);
+        const gert::Tensor *tensor_y = context->GetRequiredInputTensor(1);
+        uint32_t DT_X = static_cast<uint32_t>(tensor_x->GetDataType());
+        ASCENDC_TPL_SEL_PARAM(context, DT_X);
+        MulTilingData *tiling = context->GetTilingData<MulTilingData>();
+        
+        // 【TODO 1：补齐 Tiling 逻辑】
+        // 获取总元素个数 (题目中是 8 * 2048 = 16384)
+        uint32_t totalLength = tensor_x->GetShapeSize();
+        tiling->totalLength = totalLength;
+        tiling->tileNum = TILE_NUM; // 使用上方定义的常量 TILE_NUM = 8
+
+        // 配置启动核数 (题目 8*2048，建议启动 8 个核)
+        context->SetBlockDim(8);
+        
+        // 配置workspace大小
+        size_t *currentWorkspace = context->GetWorkspaceSizes(1);
+        currentWorkspace[0] = 0;
+        return ge::GRAPH_SUCCESS;
+    }
+}  // namespace optiling
+
+namespace ge {
+    static graphStatus InferShape(gert::InferShapeContext *context) {
+        // 【TODO 2：补齐 Shape 推导】
+        // 乘法算子的输出 Shape 与输入 x 完全一致
+        auto inputShape = context->GetInputShape(0);
+        auto outputShape = context->GetOutputShape(0);
+        *outputShape = *inputShape;
+        return GRAPH_SUCCESS;
+    }
+    static graphStatus InferDataType(gert::InferDataTypeContext *context) {
+        // 【TODO 3：补齐 DataType 推导】
+        // 输出类型与输入 x 的类型完全一致
+        auto inputDtype = context->GetInputDataType(0);
+        context->SetOutputDataType(0, inputDtype);
+        return ge::GRAPH_SUCCESS;
+    }
+}  // namespace ge
+
+namespace ops {
+    class Mul : public OpDef {
+    public:
+        explicit Mul(const char *name) : OpDef(name) {
+            this->Input("x")
+                .ParamType(REQUIRED)
+                .DataType({ge::DT_FLOAT, ge::DT_FLOAT16})
+                .Format({ge::FORMAT_ND, ge::FORMAT_ND});
+            this->Input("y")
+                .ParamType(REQUIRED)
+                .DataType({ge::DT_FLOAT, ge::DT_FLOAT16})
+                .Format({ge::FORMAT_ND, ge::FORMAT_ND});
+            this->Output("z")
+                .ParamType(REQUIRED)
+                .DataType({ge::DT_FLOAT, ge::DT_FLOAT16})
+                .Format({ge::FORMAT_ND, ge::FORMAT_ND});
+            this->SetInferShape(ge::InferShape).SetInferDataType(ge::InferDataType);
+            this->AICore()
+                .SetTiling(optiling::TilingFunc)
+                .AddConfig("ascend910b");
+        }
+    };
+    OP_ADD(Mul);
+}  // namespace ops
