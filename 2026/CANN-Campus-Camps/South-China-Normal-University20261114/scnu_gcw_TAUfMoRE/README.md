@@ -2,10 +2,10 @@
 
 ## 团队信息
 
-- 提交者: gcw_TAUfMoRE
+- 提交者: 马晓北
 - 身份: 学生
 - 单位: 华南师范大学
 
 ## 成员
 
-- gcw_TAUfMoRE (gcw_TAUfMoRE): 提交者
+- 马晓北 (gcw_TAUfMoRE): 提交者
