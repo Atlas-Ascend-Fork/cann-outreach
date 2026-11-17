@@ -8,6 +8,9 @@
 **/__pycache__/
 *.pyc
 
+# macOS 文件系统元数据
+.DS_Store
+
 # WPS 自动备份文件（体积大，禁止入库；GitCode 单文件上限 10MB）
 *.wppsnapshot
 *.wppsnapshot.*
