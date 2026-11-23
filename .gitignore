@@ -10,6 +10,8 @@
 
 # macOS 文件系统元数据
 .DS_Store
+# macOS 扩展属性伴生文件（AppleDouble，Issue #875）
+._*
 
 # WPS 自动备份文件（体积大，禁止入库；GitCode 单文件上限 10MB）
 *.wppsnapshot

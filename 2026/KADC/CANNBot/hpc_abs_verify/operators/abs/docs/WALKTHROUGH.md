@@ -35,8 +35,8 @@
       {1, (uint32_t)(count * sizeof(T), 0, 0});  // copyParams
   ```
 - **文档依据**：
-  - 最佳实践：[api-datacopy.md §选择规则](ascendc-api-best-practices/references/api-datacopy.md#选择规则)："原则：优先使用 DataCopyPad"
-  - 官方文档：[基础数据搬运.md](asc-devkit/docs/api/SIMD-API/基础API/Memory数据搬运/DataCopy/基础数据搬运.md)："count * sizeof(T) 需要 32 字节对齐，若不对齐，搬运量将对 32 字节做向下取整"
+  - 最佳实践：[api-datacopy.md §选择规则](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-datacopy.md#选择规则)："原则：优先使用 DataCopyPad"
+  - 官方文档：[基础数据搬运.md](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/memory_vector_compute/data_move/DataCopy_GMAndUB_continuous.md)："count * sizeof(T) 需要 32 字节对齐，若不对齐，搬运量将对 32 字节做向下取整"
 
 ---
 
@@ -102,8 +102,8 @@
   }
   ```
 - **文档依据**：
-  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：标准的 CopyIn-Compute-CopyOut 三段式结构
-  - 最佳实践：[api-buffer.md §TQue 正确用法](ascendc-api-best-practices/references/api-buffer.md#tque-正确用法)：EnQue/DeQue/FreeTensor 的正确配对
+  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：标准的 CopyIn-Compute-CopyOut 三段式结构
+  - 最佳实践：[api-buffer.md §TQue 正确用法](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#tque-正确用法)：EnQue/DeQue/FreeTensor 的正确配对
 
 ---
 
@@ -138,7 +138,7 @@
   ```
 - **文档依据**：
   - 设计文档：DESIGN.md §2.2 UB 切分公式
-  - 最佳实践：[api-buffer.md §TQue Buffer 数量限制](ascendc-api-best-practices/references/api-buffer.md#tque-buffer-数量限制)：Double Buffer 开启时每个 TQue 占用 2 个 buffer
+  - 最佳实践：[api-buffer.md §TQue Buffer 数量限制](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#tque-buffer-数量限制)：Double Buffer 开启时每个 TQue 占用 2 个 buffer
 
 ---
 
@@ -179,8 +179,8 @@
   }
   ```
 - **文档依据**：
-  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：详细说明流水线并行原理和实现
-  - 最佳实践：[api-buffer.md §为什么能并行？](ascendc-api-best-practices/references/api-buffer.md#为什么能并行)：DataCopy 异步 DMA、EnQue 非阻塞、DeQue 阻塞
+  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：详细说明流水线并行原理和实现
+  - 最佳实践：[api-buffer.md §为什么能并行？](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#为什么能并行)：DataCopy 异步 DMA、EnQue 非阻塞、DeQue 阻塞
 
 ---
 
@@ -254,8 +254,8 @@
   3. Tiling 设计时可能产生非对齐的 tile 大小（尾块处理）
   4. 对齐场景下性能差异可忽略
 - **文档依据**：
-  - 最佳实践：[api-datacopy.md §选择规则](.opencode/skills/ascendc-api-best-practices/references/api-datacopy.md#选择规则)
-  - 官方文档：[基础数据搬运.md](asc-devkit/docs/api/SIMD-API/基础API/Memory数据搬运/DataCopy/基础数据搬运.md)：确认 DataCopy 的 32 字节对齐要求
+  - 最佳实践：[api-datacopy.md §选择规则](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-datacopy.md#选择规则)
+  - 官方文档：[基础数据搬运.md](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/memory_vector_compute/data_move/DataCopy_GMAndUB_continuous.md)：确认 DataCopy 的 32 字节对齐要求
 - **DESIGN.md 变更**：
   - §1.2 API 映射表：将 DataCopy 替换为 DataCopyPad
   - §1.2.1 API 语义验证表：更新为 DataCopyPad 的参数签名
@@ -271,8 +271,8 @@
   2. Buffer 流水线顺序不符合标准的 CopyIn-Compute-CopyOut 三段式结构
   3. 难以按照最佳实践实现 Double Buffer 流水线并行
 - **文档依据**：
-  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](.opencode/skills/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水水线并行)：标准三段式结构
-  - 最佳实践：[api-buffer.md §TQue 正确用法](.opencode/skills/ascendc-api-best-practices/references/api-buffer.md#tque-正确用法)：EnQue/DeQue/FreeTensor 配对
+  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：标准三段式结构
+  - 最佳实践：[api-buffer.md §TQue 正确用法](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#tque-正确用法)：EnQue/DeQue/FreeTensor 配对
 - **DESIGN.md 变更**：
   - §2.4.1 Elementwise 标准流程：完全重构伪代码为标准三段式结构（CopyIn、Compute、CopyOut、Process）
 
@@ -285,7 +285,7 @@
   2. Double Buffer 开启后每个 buffer 的实际大小
 - **文档依据**：
   - 设计文档：DESIGN.md §2.2 UB 切分公式
-  - 最佳实践：[api-buffer.md §TQue Buffer 数量限制](.opencode/skills/ascendc-api-best-practices/references/api-buffer.md#tque-buffer-数量限制)
+  - 最佳实践：[api-buffer.md §TQue Buffer 数量限制](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#tque-buffer-数量限制)
 - **DESIGN.md 变更**：
   - §2.2 UB 切分策略：补充具体数值计算示例（Atlas A2/A3 UB = 192KB）
 
@@ -298,8 +298,8 @@
   2. 单循环结构如何自动实现 Buffer 轮转
   3. 如何通过三段式结构实现 MTE2/MTE3 与 Vector 并行
 - **文档依据**：
-  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](.opencode/skills/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：详细说明流水线并行原理
-  - 最佳实践：[api-buffer.md §为什么能并行？](.opencode/skills/ascendc-api-best-practices/references/api-buffer.md#为什么能并行)：DataCopy 异步 DMA、EnQue 非阻塞、DeQue 阻塞
+  - 最佳实践：[api-buffer.md §Double Buffer 流水线并行](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#double-buffer-流水线并行)：详细说明流水线并行原理
+  - 最佳实践：[api-buffer.md §为什么能并行？](https://gitcode.com/cann/cannbot-skills/blob/master/ops/ascendc-api-best-practices/references/api-buffer.md#为什么能并行)：DataCopy 异步 DMA、EnQue 非阻塞、DeQue 阻塞
 - **DESIGN.md 变更**：
   - §2.4.1 Elementwise 标准流程：补充 Double Buffer 流水线并行时间线说明
 

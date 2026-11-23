@@ -50,9 +50,9 @@ C = A * B_sparse^T
 
 | 数学操作 | 对应 API | 关键参数 | 数据布局 | 官方文档 |
 |---------|---------|---------|---------|---------|
-| 稀疏矩阵加载 | `LoadDataWithSparse` | dst(B2), src(B1), idx(B1), loadDataParams | NZ格式 | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/矩阵计算（ISASI）/数据搬运/LoadDataWithSparse.md) |
-| 稀疏矩阵乘法 | `MmadWithSparse` | dst(CO1), fm(A2), filter(B2), mmadParams | ND格式 | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/矩阵计算（ISASI）/矩阵计算/MmadWithSparse.md) |
-| 结果类型转换 | `Fixpipe` | dst(GM), src(CO1), fixpipeParams | ND格式 | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/数据搬运/Fixpipe.md) |
+| 稀疏矩阵加载 | `LoadDataWithSparse` | dst(B2), src(B1), idx(B1), loadDataParams | NZ格式 | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/cube_compute_load/LoadDataWithSparse.md) |
+| 稀疏矩阵乘法 | `MmadWithSparse` | dst(CO1), fm(A2), filter(B2), mmadParams | ND格式 | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/mmad_compute/MmadWithSparse.md) |
+| 结果类型转换 | `Fixpipe` | dst(GM), src(CO1), fixpipeParams | ND格式 | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/cube_compute_store/Fixpipe_L0CToGM.md) |
 
 #### 1.2.1 API 语义验证
 
@@ -62,9 +62,9 @@ C = A * B_sparse^T
 
 | API | 数据布局 | 功能需求 | API选择 | 限制条件 | 匹配 | 文档 |
 |-----|---------|---------|---------|---------|-----|------|
-| LoadDataWithSparse | B1→B2，NZ格式，512B对齐 | 搬运稀疏权重矩阵到B2，同时加载索引矩阵 | `LoadDataWithSparse(b2Local, b1Local, idxB1Local, loadDataParams)` | 输入输出必须是int8_t；索引矩阵为uint8_t；不支持转置 | ✅ | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/矩阵计算（ISASI）/数据搬运/LoadDataWithSparse.md) |
-| MmadWithSparse | A2+B2→CO1，ND格式 | 稀疏矩阵乘加操作 | `MmadWithSparse(cLocal, a2Local, b2Local, mmadParams)` | 左矩阵A为稠密矩阵，右矩阵B为稠密化后的矩阵；输出必须是int32_t；M/K/N不能为0 | ✅ | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/矩阵计算（ISASI）/矩阵计算/MmadWithSparse.md) |
-| Fixpipe | CO1→GM，ND格式 | 结果输出+类型转换 | `Fixpipe(cGM, cLocal, fixpipeParams)` | 支持int32_t→float32转换 | ✅ | [链接](../../../asc-devkit/docs/api/SIMD-API/基础API/数据搬运/Fixpipe.md) |
+| LoadDataWithSparse | B1→B2，NZ格式，512B对齐 | 搬运稀疏权重矩阵到B2，同时加载索引矩阵 | `LoadDataWithSparse(b2Local, b1Local, idxB1Local, loadDataParams)` | 输入输出必须是int8_t；索引矩阵为uint8_t；不支持转置 | ✅ | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/cube_compute_load/LoadDataWithSparse.md) |
+| MmadWithSparse | A2+B2→CO1，ND格式 | 稀疏矩阵乘加操作 | `MmadWithSparse(cLocal, a2Local, b2Local, mmadParams)` | 左矩阵A为稠密矩阵，右矩阵B为稠密化后的矩阵；输出必须是int32_t；M/K/N不能为0 | ✅ | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/mmad_compute/MmadWithSparse.md) |
+| Fixpipe | CO1→GM，ND格式 | 结果输出+类型转换 | `Fixpipe(cGM, cLocal, fixpipeParams)` | 支持int32_t→float32转换 | ✅ | [链接](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/cube_compute_ISASI/cube_compute_store/Fixpipe_L0CToGM.md) |
 
 **验证清单**（每个 API 必须完成）：
 - [x] 1. 数据布局确认（内存排列、连续性、对齐）

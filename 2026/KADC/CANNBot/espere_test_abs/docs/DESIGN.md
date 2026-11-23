@@ -60,7 +60,7 @@ y[i] = |x[i]|   (逐元素取绝对值)
 
 | 数学操作 | 对应 API | 关键参数 | 数据布局 | 官方文档 |
 |---------|---------|---------|---------|---------|
-| 绝对值计算 | `Abs< half >(dst, src, count)` | 前 count 个元素 | 连续 1D LocalTensor<half> | [Abs.md](asc-devkit/docs/api/SIMD-API/基础API/Memory矢量计算/基础算术/Abs.md) |
+| 绝对值计算 | `Abs< half >(dst, src, count)` | 前 count 个元素 | 连续 1D LocalTensor<half> | [Abs.md](https://gitcode.com/cann/asc-devkit/blob/master/docs/zh/api/SIMD-API/basic_api/memory_vector_compute/basic_arithmetic/Abs.md) |
 | GM → UB 搬运 | `DataCopyPad(dst, src, copyParams, padParams)` | blockLen=有效元素×2B | 连续 GM → LocalTensor | [api-datacopy.md] |
 | UB → GM 搬运 | `DataCopyPad<dstType>(gm, ub, copyParams)` | 输出回写 | LocalTensor → GM | [api-datacopy.md] |
 

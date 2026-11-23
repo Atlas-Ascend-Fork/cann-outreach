@@ -33,7 +33,7 @@ cp -r Template/DivCustomTemplate <你的用户名>/DivCustomTemplate
 - [test/](./Template/DivCustomTemplate/test/) —— 测试代码（已提供）
   - `main.cpp` —— 调用 `aclnnDivCustomTemplate` 接口的测试代码
   - `CMakeLists.txt` —— 测试代码的 CMake 构建脚本（可选，run.sh 默认使用 g++ 直接编译）
-- [custom_op/](./Template/DivCustomTemplate/custom_op/) —— 算子工程目录（需要你使用 `msopgen` 工具自行生成）
+- `custom_op/` —— 算子工程目录（需要你使用 `msopgen` 工具自行生成）
 > **注意**：`custom_op/` 算子工程目录不在骨架中，需要你使用 `msopgen` 工具自行生成。
 
 ## 你需要完成的内容
