@@ -33,4 +33,4 @@ CANN-Summer-Camps/
 ## 联系方式
 - **官方邮箱**：community@cann-community.com
 - **技术支持**：support@cann-community.com
-- **Issue 反馈**：https://gitcode.com/cann/cann-competitions/issues
+- **Issue 反馈**：https://gitcode.com/cann/cann-outreach/issues
