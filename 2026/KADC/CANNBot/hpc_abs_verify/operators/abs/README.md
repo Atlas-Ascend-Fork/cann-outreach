@@ -1,23 +1,23 @@
-# Add Custom Kernel 直调样例
+# Abs Custom Kernel 直调样例
 
-add_custom 算子的 Kernel 直调实现示例，同时支持 PyTorch 对接。
+abs 算子的 Kernel 直调实现示例，同时支持 PyTorch 对接。
 
-详细代码说明见 `op_kernel/add_custom_kernel.asc` 和 `op_kernel/add_custom_tiling.h` 中的注释（搜索 `[MODIFY]` 标记）。
+详细代码说明见 `op_kernel/abs_kernel.asc` 和 `op_kernel/abs_tiling.h` 中的注释（搜索 `[MODIFY]` 标记）。
 
 ## 文件结构
 
 ```
 ├── op_kernel/
-│   ├── add_custom_tiling.h    Tiling 常量 + 结构体（kernel 和 host 共用）
-│   └── add_custom_kernel.asc  纯 kernel 代码（KernelAdd 类 + add_custom_kernel 核函数入口）
+│   ├── abs_tiling.h           Tiling 常量 + 结构体（kernel 和 host 共用）
+│   └── abs_kernel.asc         纯 kernel 代码（KernelAbs 类 + abs_kernel 核函数入口）
 ├── op_host/
-│   ├── add_custom.asc         Host + main 入口（#include "add_custom_kernel.asc"）
+│   ├── abs.asc                Host + main 入口（#include "abs_kernel.asc"）
 │   └── data_utils.h           数据读写工具
 ├── op_extension/
-│   ├── add_custom_torch.cpp   PyTorch host 实现（Tiling 计算 + kernel launch）
+│   ├── abs_torch.cpp          PyTorch host 实现（Tiling 计算 + kernel launch）
 │   ├── register.cpp           TORCH_LIBRARY 注册（含 Meta backend）
 │   └── ops.h                  函数声明
-├── CMakeLists.txt             双 target：可执行文件 + libadd_custom_ops.so
+├── CMakeLists.txt             双 target：可执行文件 + libabs_ops.so
 └── scripts/                   数据生成和验证脚本
 ```
 
@@ -30,12 +30,12 @@ source ${ASCEND_HOME_PATH}/set_env.sh
 bash run.sh
 ```
 
-或手动执行：
+或手动执行（均在 build 目录下）：
 
 ```bash
 mkdir -p build && cd build && cmake .. && make -j
-cd .. && python3 scripts/gen_data.py
-cd build && ./add_custom
+python3 ../scripts/gen_data.py
+./abs
 python3 ../scripts/verify_result.py output/output.bin output/golden.bin
 ```
 
@@ -45,11 +45,10 @@ python3 ../scripts/verify_result.py output/output.bin output/golden.bin
 import torch
 import torch_npu
 
-torch.ops.load_library("build/libadd_custom_ops.so")
+torch.ops.load_library("build/libabs_ops.so")
 
-x1 = torch.randn(8, 2048, dtype=torch.float32).npu()
-x2 = torch.randn(8, 2048, dtype=torch.float32).npu()
-y = torch.ops.npu.add_custom(x1, x2)
+x = torch.randn(8, 2048, dtype=torch.float32).npu()
+y = torch.ops.npu.abs(x)
 
-assert torch.allclose(y.cpu(), x1.cpu() + x2.cpu())
+assert torch.allclose(y.cpu(), torch.abs(x.cpu()))
 ```

@@ -13,7 +13,7 @@
 # ============================================================================
 #
 # [MODIFY] 创建新算子时修改:
-# 1. dtype: 数据类型（需与 gen_data.py 和 add.asc 保持一致）
+# 1. dtype: 数据类型（需与 gen_data.py 和 abs.asc 保持一致）
 # 2. rtol/atol: 容差参数（根据算子精度要求调整）
 # ============================================================================
 
@@ -21,7 +21,7 @@ import numpy as np
 import sys
 
 # [MODIFY] 验证参数
-dtype = np.float32   # 数据类型，需与 gen_data.py 和 add.asc 保持一致
+dtype = np.float32   # 数据类型，需与 gen_data.py 和 abs.asc 保持一致
 rtol = 1e-5          # 相对容差
 atol = 1e-8          # 绝对容差
 

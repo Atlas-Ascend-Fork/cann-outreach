@@ -27,7 +27,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
 # [MODIFY] 替换为实际的算子二进制名称
-OP_NAME="add"
+OP_NAME="abs"
 
 SKIP_BUILD=0
 TORCH_ONLY=0

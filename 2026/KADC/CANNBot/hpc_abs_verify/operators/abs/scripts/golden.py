@@ -23,14 +23,13 @@ import numpy as np
 
 
 # [MODIFY] 替换为你的算子的正确计算逻辑
-def compute_golden(x1, x2):
+def compute_golden(x):
     """计算算子的参考输出。
 
     Args:
-        x1: numpy array 或 torch.Tensor
-        x2: numpy array 或 torch.Tensor
+        x: numpy array 或 torch.Tensor
 
     Returns:
         与输入同类型的参考输出
     """
-    return x1 + x2
+    return abs(x)

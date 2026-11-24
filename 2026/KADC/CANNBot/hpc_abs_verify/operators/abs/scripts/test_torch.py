@@ -28,26 +28,27 @@ import torch_npu
 from golden import compute_golden
 
 # [MODIFY] 算子配置
-SO_NAME = "libadd_custom_ops.so"    # .so 文件名，需与 CMakeLists.txt target 一致
-OP_NAME = "add_custom"              # 算子名称，需与 register.cpp 注册名一致
+SO_NAME = "libabs_ops.so"           # .so 文件名，需与 CMakeLists.txt target 一致
+OP_NAME = "abs"                     # 算子名称，需与 register.cpp 注册名一致
 DTYPE = torch.float32               # 数据类型
 ATOL = 1e-6                         # 绝对容差
 RTOL = 1e-6                         # 相对容差
 
 
-def run_test(name, x1, x2):
+def run_test(name, x):
     """运行单个测试用例，返回 (name, passed, max_diff)"""
     op_fn = getattr(torch.ops.npu, OP_NAME)
-    y = op_fn(x1.npu(), x2.npu())
-    golden = compute_golden(x1, x2).npu()
-    max_diff = torch.max(torch.abs(y - golden)).item()
-    passed = torch.allclose(y.cpu(), golden.cpu(), atol=ATOL, rtol=RTOL)
+    y = op_fn(x.npu())
+    golden = compute_golden(x)
+    max_diff = torch.max(torch.abs(y.cpu() - golden)).item()
+    passed = torch.allclose(y.cpu(), golden, atol=ATOL, rtol=RTOL)
     return name, passed, max_diff
 
 
 def main():
-    # 加载算子库
-    so_path = os.path.join("build", SO_NAME)
+    # 加载算子库（按脚本自身位置定位 build 目录，任意 cwd 下均可运行）
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    so_path = os.path.join(project_root, "build", SO_NAME)
     if not os.path.exists(so_path):
         print(f"ERROR: {so_path} not found. Run 'cmake .. && make' first.")
         sys.exit(1)
@@ -57,19 +58,16 @@ def main():
     results = []
 
     # P1: 随机数据
-    x1 = torch.randn(8, 16, dtype=DTYPE)
-    x2 = torch.randn(8, 16, dtype=DTYPE)
-    results.append(run_test("P1 random", x1, x2))
+    x = torch.randn(8, 16, dtype=DTYPE)
+    results.append(run_test("P1 random", x))
 
     # P2: 零值
-    x1 = torch.zeros(8, 16, dtype=DTYPE)
-    x2 = torch.zeros(8, 16, dtype=DTYPE)
-    results.append(run_test("P2 zeros", x1, x2))
+    x = torch.zeros(8, 16, dtype=DTYPE)
+    results.append(run_test("P2 zeros", x))
 
-    # P3: 正负混合
-    x1 = torch.randn(8, 16, dtype=DTYPE)
-    x2 = -x1
-    results.append(run_test("P3 pos_neg", x1, x2))
+    # P3: 全负数（验证符号翻转）
+    x = -torch.abs(torch.randn(8, 16, dtype=DTYPE))
+    results.append(run_test("P3 negative", x))
 
     # 汇总
     total = len(results)
