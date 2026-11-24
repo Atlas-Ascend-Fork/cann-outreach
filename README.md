@@ -9,7 +9,7 @@
 
 ```
 2026/
-├── Ascend_C_exercises‌/            # Ascend C 练习题（sample 样例、temple 模板、submit 学员提交）
+├── Ascend_C_exercises/            # Ascend C 练习题（sample 样例、temple 模板、submit 学员提交）
 ├── CANN-Campus-Camps/              # CANN 训练营 2026（高校专场）
 ├── CANN-Code-Detective/            # CANN Code Detective 代码侦探系列编程挑战
 ├── CANN-Op-Workshop/               # 算子实操工坊（线下实操活动）
@@ -35,7 +35,7 @@
 | [ranxing](2026/ranxing/) | 燃星空活动，在北京、长沙、福建、广州、杭州、上海、武汉、西安等区域开展 |
 | [KADC](2026/KADC/README.md) | 鲲鹏昇腾开发者大会 KADC 2026，含 CANNBot、op_tester、PyPTO 等赛道作品提交 |
 | [HC](2026/HC/README.md) | 华为全联接大会 HC 2026，存放 CANN 相关技术作品与开发者体验项目 |
-| [Ascend_C_exercises‌](2026/Ascend_C_exercises‌/) | Ascend C 练习题，含官方样例（sample）、工程模板（temple）与学员提交（submit） |
+| [Ascend_C_exercises](2026/Ascend_C_exercises/) | Ascend C 练习题，含官方样例（sample）、工程模板（temple）与学员提交（submit） |
 
 ## 提交说明
 各活动目录下设有独立的 README，请先阅读对应活动的 README 了解提交规范。一般遵循以下目录结构，在对应活动（区域/高校）目录下提交作品：

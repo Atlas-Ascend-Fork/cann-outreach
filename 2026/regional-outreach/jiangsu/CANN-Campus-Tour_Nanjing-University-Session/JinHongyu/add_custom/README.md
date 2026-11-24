@@ -5,7 +5,7 @@
 - 算子名：`AddCustom`（opp 包名 `add_custom`，kernel 函数 `add_custom`，aclnn 接口 `aclnnAddCustom` / `aclnnAddCustomGetWorkspaceSize`）
 - 输入 `x`、`y`，输出 `z`，均为 **二维 [N2, N1]、float16、ND** 格式
 - 目标芯片：**Ascend 910B**（`ascend910b` / `Ascend910B1`）
-- 参考工程：本仓库 `JinHongyu/2026/Ascend_C_exercises‌/temple/temple_opensource` 与 `sample/sample_opensource` 的集训营模板（opensource 工程结构）
+- 参考工程：本仓库 `JinHongyu/2026/Ascend_C_exercises/temple/temple_opensource` 与 `sample/sample_opensource` 的集训营模板（opensource 工程结构）
 
 ## 1. 文件清单
 
